@@ -25,13 +25,7 @@ def periodic_cf_refresh(interval=900):
         time.sleep(interval)
 
 def start_background_tasks():
-    global cf_cookie
-    try:
-        cf_cookie = asyncio.run(refresh_cf_cookie())
-        app.logger.info("cf_cookie primed on startup")
-    except Exception as e:
-        app.logger.error(f"Initial cf_cookie prime failed: {e}")
-    
+    # ⏩ Don't block startup — just kick off auto-refresh
     t = Thread(target=periodic_cf_refresh, daemon=True)
     t.start()
 
@@ -61,11 +55,8 @@ def forward_civitai_request(endpoint, req, cf_cookie):
 def index():
     global cf_cookie
     if cf_cookie is None:
-        try:
-            cf_cookie = asyncio.run(refresh_cf_cookie())
-            app.logger.info("cf_cookie primed at index route")
-        except Exception as e:
-            app.logger.error(f"Failed to prime cf_cookie: {e}")
+        Thread(target=lambda: asyncio.run(refresh_cf_cookie()), daemon=True).start()
+        app.logger.info("cf_cookie kickstarted async in index route")
     return "Chaos Pipe proxy is alive."
 
 # 💓 health ping

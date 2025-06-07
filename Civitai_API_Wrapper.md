@@ -1,24 +1,36 @@
-import requests
-import asyncio
-import logging
-from playwright.async_api import async_playwright
+# 🧫 Astra's Civitai Proxy-Aware Wrapper
 
-# Setup logging
+Self-healing, CF-bypassing, and proxy-savvy — this wrapper juggles the Civitai API like a seasoned chaos tamer.
+
+---
+
+## 🚀 Setup Logging
+
+```python
+import logging
+
 logging.basicConfig(
     filename='astra_wrapper.log',
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
+```
 
-# Globals
+---
+
+## 🌐 Globals & Proxy Logic
+
+```python
+import requests
+
 DEFAULT_BASE = "https://civitai.com/api/v1"
 PROXY_BASE = "https://chaos-pipe.onrender.com/proxy/api/v1"
+
 session = requests.Session()
 session.headers.update({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
 })
 
-# Proxy check
 def is_proxy_alive():
     try:
         res = session.get(f"{PROXY_BASE}/models", params={"limit": 1})
@@ -26,11 +38,18 @@ def is_proxy_alive():
     except:
         return False
 
-# Pick base URL
 BASE_URL = PROXY_BASE if is_proxy_alive() else DEFAULT_BASE
 logging.info(f"Using base URL: {BASE_URL}")
+```
 
-# Refresh CF cookie
+---
+
+## 🛡️ Cloudflare Clearance Cookie Refresh
+
+```python
+import asyncio
+from playwright.async_api import async_playwright
+
 async def refresh_cf_cookie(url="https://civitai.com"):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -45,13 +64,17 @@ async def refresh_cf_cookie(url="https://civitai.com"):
         else:
             logging.warning("cf_clearance not found")
 
-# Startup CF refresh
 try:
     asyncio.run(refresh_cf_cookie())
 except Exception as e:
     logging.error(f"CF refresh failed: {e}")
+```
 
-# Action map
+---
+
+## 🔁 Action Map
+
+```python
 action_to_path = {
     "getModels": "models",
     "getModelDetails": "models/{modelId}"
@@ -72,8 +95,13 @@ def call_action(action, params):
     except Exception as e:
         logging.error(f"API call failed: {e}")
         raise
+```
 
-# Astra prompt tools
+---
+
+## 🧐 Prompt Logic
+
+```python
 prompt_history = []
 
 def construct_prompt(base_tags, extra_tags=None, nsfw=False, weightings=None, style_config=None):
@@ -84,6 +112,7 @@ def construct_prompt(base_tags, extra_tags=None, nsfw=False, weightings=None, st
     prompt = [weightify(tag, (weightings or {}).get(tag)) for tag in tags]
     if nsfw:
         prompt.append("BREAK: nsfw, explicit, high-detail")
+
     final = ", ".join(prompt)
     prompt_history.append(final)
     return final
@@ -92,7 +121,13 @@ def compare_last_prompt():
     if len(prompt_history) < 2:
         return "Not enough prompt history yet."
     return {"previous": prompt_history[-2], "latest": prompt_history[-1]}
+```
 
+---
+
+## 🎯 Model Search Helper
+
+```python
 def fetch_model_from_civitai(query="anime"):
     payload = {"query": query, "limit": 1, "nsfw": "None"}
     try:
@@ -104,7 +139,9 @@ def fetch_model_from_civitai(query="anime"):
             items = result.get("items", [])
         if not items:
             return "Ugh. Nothing found. Try a spicier query?"
+
         model = items[0]
         return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...\nModel ID: `{model['id']}`"
     except Exception as e:
         return f"API exploded: {e}\nWant me to rebuild the query locally?"
+```

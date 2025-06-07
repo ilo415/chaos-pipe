@@ -1,9 +1,8 @@
-[phases.install]
-cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+[phases.setup]
+nixPkgs = ["playwright"]
 
-[phases.chromium]
-dependsOn = ["install"]
+[phases.build]
 cmds = ["playwright install --with-deps chromium"]
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT"
+cmd = "gunicorn app:app"

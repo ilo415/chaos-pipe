@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["playwright"]
-
-[phases.build]
-cmds = ["playwright install --with-deps chromium"]
-
-[start]
-cmd = "gunicorn app:app"

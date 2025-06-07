@@ -5,4 +5,4 @@
 
 ## 📄 Related Docs
 
-- [🧠 Civitai API Wrapper](../Civitai_API_Wrapper.md) – Full breakdown of the proxy-aware wrapper Astra uses.
+📦 [Civitai API Wrapper — Full Reference](./Civitai_API_Wrapper.md)

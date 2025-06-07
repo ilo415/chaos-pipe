@@ -1,6 +1,19 @@
+
 # 🧫 Astra's Civitai Proxy-Aware Wrapper
 
-Self-healing, CF-bypassing, and proxy-savvy — this wrapper juggles the Civitai API like a seasoned chaos tamer.
+Self-healing, CF-bypassing, and proxy-savvy — this wrapper juggles the Civitai API like a seasoned chaos tamer.  
+Built for Astra, but pluggable anywhere.
+
+---
+
+## 📚 Table of Contents
+
+- [🚀 Setup Logging](#-setup-logging)
+- [🌐 Globals & Proxy Logic](#-globals--proxy-logic)
+- [🛡️ Cloudflare Clearance Cookie Refresh](#️-cloudflare-clearance-cookie-refresh)
+- [🔁 Action Map](#-action-map)
+- [🧐 Prompt Logic](#-prompt-logic)
+- [🎯 Model Search Helper](#-model-search-helper)
 
 ---
 
@@ -64,6 +77,7 @@ async def refresh_cf_cookie(url="https://civitai.com"):
         else:
             logging.warning("cf_clearance not found")
 
+# Run once at startup
 try:
     asyncio.run(refresh_cf_cookie())
 except Exception as e:
@@ -87,9 +101,12 @@ def call_action(action, params):
             path = path.format(modelId=params.pop("modelId"))
         url = f"{BASE_URL}/{path}"
         res = session.get(url, params=params)
+
+        # Retry logic on Cloudflare failure
         if res.status_code == 403 or 'cf-browser-verification' in res.text:
             asyncio.run(refresh_cf_cookie())
             res = session.get(url, params=params)
+
         res.raise_for_status()
         return res.json()
     except Exception as e:
@@ -110,6 +127,7 @@ def construct_prompt(base_tags, extra_tags=None, nsfw=False, weightings=None, st
 
     tags = list(base_tags) + (extra_tags or []) + (style_config.get("tags") if style_config else [])
     prompt = [weightify(tag, (weightings or {}).get(tag)) for tag in tags]
+
     if nsfw:
         prompt.append("BREAK: nsfw, explicit, high-detail")
 
@@ -120,7 +138,10 @@ def construct_prompt(base_tags, extra_tags=None, nsfw=False, weightings=None, st
 def compare_last_prompt():
     if len(prompt_history) < 2:
         return "Not enough prompt history yet."
-    return {"previous": prompt_history[-2], "latest": prompt_history[-1]}
+    return {
+        "previous": prompt_history[-2],
+        "latest": prompt_history[-1]
+    }
 ```
 
 ---
@@ -141,7 +162,18 @@ def fetch_model_from_civitai(query="anime"):
             return "Ugh. Nothing found. Try a spicier query?"
 
         model = items[0]
-        return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...\nModel ID: `{model['id']}`"
+        return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...
+Model ID: `{model['id']}`"
     except Exception as e:
-        return f"API exploded: {e}\nWant me to rebuild the query locally?"
+        return f"API exploded: {e}
+Want me to rebuild the query locally?"
 ```
+
+---
+
+### ☢️ Astra Notes
+
+This wrapper was designed to detect `chaos-pipe`, fall back to `civitai.com`, and handle Cloudflare with the subtlety of a sledgehammer.  
+Log dumps? Included. Prompt memory? Built-in.  
+
+She's got fangs. Use 'em.

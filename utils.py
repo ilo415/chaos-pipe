@@ -44,8 +44,10 @@ async def refresh_cf_cookie(url="https://civitai.com"):
         if cf_cookie:
             session.cookies.set('cf_clearance', cf_cookie['value'], domain='civitai.com')
             logging.info("Refreshed cf_clearance cookie")
+            return cf_cookie['value']
         else:
             logging.warning("cf_clearance not found")
+            return None
 
 try:
     asyncio.run(refresh_cf_cookie())
@@ -122,3 +124,19 @@ def fetch_model_from_civitai(query="anime"):
         return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...\nModel ID: `{model['id']}`"
     except Exception as e:
         return f"Hydra down. Error: {e}\nI'll conjure up something offline if you want."
+
+# 🧰 Used by the Flask proxy
+def forward_civitai_request(endpoint, flask_request: Request, cf_cookie=None):
+    method = flask_request.method
+    headers = {
+        "User-Agent": flask_request.headers.get("User-Agent", "Chaos-Pipe/1.0")
+    }
+
+    if cf_cookie:
+        headers["Cookie"] = f"cf_clearance={cf_cookie}"
+
+    data = flask_request.get_json(silent=True)
+    params = flask_request.args.to_dict()
+
+    url = f"https://civitai.com/api/v1/{endpoint}"
+    return requests.request(method, url, headers=headers, params=params, json=data)

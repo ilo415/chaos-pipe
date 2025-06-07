@@ -25,6 +25,13 @@ def periodic_cf_refresh(interval=900):
         time.sleep(interval)
 
 def start_background_tasks():
+    global cf_cookie
+    try:
+        cf_cookie = asyncio.run(refresh_cf_cookie())
+        app.logger.info("cf_cookie primed on startup")
+    except Exception as e:
+        app.logger.error(f"Initial cf_cookie prime failed: {e}")
+    
     t = Thread(target=periodic_cf_refresh, daemon=True)
     t.start()
 
@@ -78,6 +85,7 @@ def proxy(endpoint):
             app.logger.warning("403! Retrying with fresh cookie...")
             cf_cookie = asyncio.run(refresh_cf_cookie())
             resp = forward_civitai_request(endpoint, request, cf_cookie)
+        app.logger.info(f"Proxy response {resp.status_code}: {resp.text[:200]}")
         return (resp.content, resp.status_code, resp.headers.items())
     except Exception as e:
         app.logger.error(f"Proxy error: {e}")

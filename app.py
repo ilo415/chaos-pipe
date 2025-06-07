@@ -4,12 +4,14 @@ import logging
 import asyncio
 from threading import Thread
 import time
+import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 cf_cookie = None  # lazy init
 
+# 🔁 background cf_cookie auto-refresh
 def periodic_cf_refresh(interval=900):
     global cf_cookie
     while True:
@@ -27,6 +29,7 @@ def start_background_tasks():
 
 start_background_tasks()
 
+# ✅ sanity check route
 @app.route('/')
 def index():
     global cf_cookie
@@ -38,16 +41,22 @@ def index():
             app.logger.error(f"Failed to prime cf_cookie: {e}")
     return "Chaos Pipe proxy is alive."
 
+# 💓 health ping
 @app.route('/healthz')
 def healthz():
     if cf_cookie:
         return jsonify({"status": "ok"}), 200
     return jsonify({"status": "cf_cookie missing"}), 503
 
+# 🚪 smart proxy with x-api-key override
 @app.route('/proxy/<path:endpoint>', methods=['GET', 'POST'])
 def proxy(endpoint):
     global cf_cookie
     try:
+        api_key = request.headers.get("x-api-key") or os.getenv("CIVITAI_API_KEY")
+        if api_key:
+            request.headers.environ["HTTP_AUTHORIZATION"] = f"Bearer {api_key}"
+
         resp = forward_civitai_request(endpoint, request, cf_cookie)
         if resp.status_code == 403:
             app.logger.warning("403! Retrying with fresh cookie...")

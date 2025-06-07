@@ -1,14 +1,31 @@
-# app.py
 from flask import Flask, request, jsonify
 from utils import refresh_cf_cookie, forward_civitai_request
 import logging
 import asyncio
+from threading import Thread
+import time
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 cf_cookie = None  # lazy init
 
+def periodic_cf_refresh(interval=900):
+    global cf_cookie
+    while True:
+        try:
+            app.logger.info("Refreshing cf_cookie in background...")
+            cf_cookie = asyncio.run(refresh_cf_cookie())
+            app.logger.info("cf_cookie refreshed")
+        except Exception as e:
+            app.logger.error(f"cf_cookie auto-refresh failed: {e}")
+        time.sleep(interval)
+
+def start_background_tasks():
+    t = Thread(target=periodic_cf_refresh, daemon=True)
+    t.start()
+
+start_background_tasks()
 
 @app.route('/')
 def index():
@@ -21,6 +38,11 @@ def index():
             app.logger.error(f"Failed to prime cf_cookie: {e}")
     return "Chaos Pipe proxy is alive."
 
+@app.route('/healthz')
+def healthz():
+    if cf_cookie:
+        return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "cf_cookie missing"}), 503
 
 @app.route('/proxy/<path:endpoint>', methods=['GET', 'POST'])
 def proxy(endpoint):

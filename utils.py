@@ -103,23 +103,6 @@ def compare_last_prompt():
         return "Not enough prompt history yet."
     return {"previous": prompt_history[-2], "latest": prompt_history[-1]}
 
-# Model fetch shortcut
-def fetch_model_from_civitai(query="anime"):
-    payload = {"query": query, "limit": 1, "nsfw": "None"}
-    try:
-        result = call_action("getModels", payload)
-        items = result.get("items", [])
-        if not items:
-            payload["nsfw"] = "X"
-            result = call_action("getModels", payload)
-            items = result.get("items", [])
-        if not items:
-            return "Ugh. Nothing found. Try a spicier query?"
-        model = items[0]
-        return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...\nModel ID: `{model['id']}`"
-    except Exception as e:
-        return f"Hydra down. Error: {e}\nI'll conjure up something offline if you want."
-
 # 🧰 Used by the Flask proxy
 def forward_civitai_request(endpoint, flask_request: Request, cf_cookie=None):
     method = flask_request.method

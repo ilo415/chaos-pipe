@@ -3,7 +3,7 @@ services:
     name: chaos-pipe
     env: python
     buildCommand: bash render-build.sh
-    startCommand: python app.py
+    startCommand: gunicorn app:app
     plan: free
     envVars:
       - key: CIVITAI_API_KEY

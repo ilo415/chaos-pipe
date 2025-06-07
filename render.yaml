@@ -2,7 +2,7 @@ services:
   - type: web
     name: chaos-pipe
     env: python
-    buildCommand: ./render-build.sh
+    buildCommand: bash render-build.sh
     startCommand: python app.py
     plan: free
     envVars:

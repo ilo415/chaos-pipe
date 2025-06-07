@@ -1,0 +1,27 @@
+app = "chaos-pipe"
+
+[build]
+image = "python:3.11-slim"
+
+[env]
+PORT = "8080"
+PYTHONUNBUFFERED = "1"
+CIVITAI_API_KEY = "your_api_key_here"  # or manage it via Fly secrets
+
+[deploy]
+release_command = "playwright install chromium"
+
+[experimental]
+auto_rollback = true
+
+[[services]]
+internal_port = 8080
+protocol = "tcp"
+
+  [[services.ports]]
+  handlers = ["http"]
+  port = 80
+
+  [[services.ports]]
+  handlers = ["tls", "http"]
+  port = 443

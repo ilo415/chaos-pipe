@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 
-pip uninstall -y flask  # 🔥 nuke any preinstalled Flask
+# Uninstall any rogue flask versions (Render caches weird sometimes)
+pip uninstall -y flask
+
+# Install deps clean
 pip install -r requirements.txt
 
-# Browser cache for Render
+# Render-safe playwright browser path
 export PLAYWRIGHT_BROWSERS_PATH=/opt/render/.cache/ms-playwright
 
-# Install browser engines
+# Install Chromium where Playwright expects it
 python -m playwright install chromium --with-deps

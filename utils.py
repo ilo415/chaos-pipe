@@ -64,7 +64,7 @@ def call_action(action, params):
     if "{modelId}" in path:
         path = path.format(modelId=params.pop("modelId"))
 
-    url = f"{BASE_URL}/{path}"
+    url = f"{BASE_URL}/api/v1/{endpoint}"  # ← this is what's causing the double trouble
     try:
         res = session.get(url, params=params)
         if res.status_code == 403 or 'cf-browser-verification' in res.text:

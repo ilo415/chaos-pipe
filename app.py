@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from utils import refresh_cf_cookie
 import logging
 import asyncio
@@ -6,15 +6,14 @@ from threading import Thread
 import time
 import os
 import requests
-import subprocess  # 🔧 for runtime playwright install
+import subprocess
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 cf_cookie = None  # lazy init
 
 
-# 🔁 background cf_cookie auto-refresh with browser install fallback
 def periodic_cf_refresh(interval=900):
     global cf_cookie
     while True:
@@ -48,7 +47,6 @@ def start_background_tasks():
 start_background_tasks()
 
 
-# 🔐 upgraded proxy logic, now in here
 def forward_civitai_request(endpoint, req, cf_cookie):
     headers = dict(req.headers)
     headers["cf_clearance"] = cf_cookie
@@ -87,13 +85,20 @@ def healthz():
 def proxy(endpoint):
     global cf_cookie
     try:
+        logging.info(f"Proxying path: {endpoint}")
+        logging.info(f"Request args: {request.args}")
+        logging.info(f"Request headers: {dict(request.headers)}")
+
         resp = forward_civitai_request(endpoint, request, cf_cookie)
+
         if resp.status_code == 403:
             app.logger.warning("403! Retrying with fresh cookie...")
             cf_cookie = safe_run_refresh()
             resp = forward_civitai_request(endpoint, request, cf_cookie)
-        app.logger.info(f"Proxy response {resp.status_code}: {resp.text[:200]}")
-        return (resp.content, resp.status_code, resp.headers.items())
+
+        logging.info(f"Civitai response: {resp.status_code}")
+        return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+
     except Exception as e:
-        app.logger.error(f"Proxy error: {e}")
-        return jsonify({"error": "Proxy failed", "details": str(e)}), 500
+        logging.error(f"Proxy error: {e}", exc_info=True)
+        return jsonify({"error": "Proxy failure", "detail": str(e)}), 500

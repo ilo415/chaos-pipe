@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
-from utils import refresh_cf_cookie, forward_civitai_request
+from utils import refresh_cf_cookie
 import logging
 import asyncio
 from threading import Thread
 import time
 import os
+import requests
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,25 @@ def start_background_tasks():
     t.start()
 
 start_background_tasks()
+
+# 🔐 upgraded proxy logic, now in here
+def forward_civitai_request(endpoint, req, cf_cookie):
+    headers = dict(req.headers)
+    headers["cf_clearance"] = cf_cookie
+    headers["User-Agent"] = "ChaosPipe/1.0"
+
+    # 🧠 override with x-api-key if present
+    api_key = req.headers.get("x-api-key") or os.getenv("CIVITAI_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    url = f"https://civitai.com/api/v1/{endpoint}"
+    data = req.get_json(silent=True)
+
+    if req.method == "GET":
+        return requests.get(url, params=req.args, headers=headers)
+    else:
+        return requests.post(url, json=data, headers=headers)
 
 # ✅ sanity check route
 @app.route('/')
@@ -53,10 +73,6 @@ def healthz():
 def proxy(endpoint):
     global cf_cookie
     try:
-        api_key = request.headers.get("x-api-key") or os.getenv("CIVITAI_API_KEY")
-        if api_key:
-            request.headers.environ["HTTP_AUTHORIZATION"] = f"Bearer {api_key}"
-
         resp = forward_civitai_request(endpoint, request, cf_cookie)
         if resp.status_code == 403:
             app.logger.warning("403! Retrying with fresh cookie...")

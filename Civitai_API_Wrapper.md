@@ -1,41 +1,20 @@
+# 🧫 Astra's Fully Upgraded Civitai Proxy-Aware Wrapper
 
-# 🧫 Astra's Civitai Proxy-Aware Wrapper
-
-Self-healing, CF-bypassing, and proxy-savvy — this wrapper juggles the Civitai API like a seasoned chaos tamer.  
-Built for Astra, but pluggable anywhere.
-
----
-
-## 📚 Table of Contents
-
-- [🚀 Setup Logging](#-setup-logging)
-- [🌐 Globals & Proxy Logic](#-globals--proxy-logic)
-- [🛡️ Cloudflare Clearance Cookie Refresh](#️-cloudflare-clearance-cookie-refresh)
-- [🔁 Action Map](#-action-map)
-- [🧐 Prompt Logic](#-prompt-logic)
-- [🎯 Model Search Helper](#-model-search-helper)
-
----
-
-## 🚀 Setup Logging
-
-```python
 import logging
+import requests
+import asyncio
+import json
+from pathlib import Path
+from playwright.async_api import async_playwright
 
+# 🚀 Setup Logging
 logging.basicConfig(
     filename='astra_wrapper.log',
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
-```
 
----
-
-## 🌐 Globals & Proxy Logic
-
-```python
-import requests
-
+# 🌐 Globals & Proxy Logic
 DEFAULT_BASE = "https://civitai.com/api/v1"
 PROXY_BASE = "https://chaos-pipe.onrender.com/proxy/api/v1"
 
@@ -53,16 +32,8 @@ def is_proxy_alive():
 
 BASE_URL = PROXY_BASE if is_proxy_alive() else DEFAULT_BASE
 logging.info(f"Using base URL: {BASE_URL}")
-```
 
----
-
-## 🛡️ Cloudflare Clearance Cookie Refresh
-
-```python
-import asyncio
-from playwright.async_api import async_playwright
-
+# 🛡️ Cloudflare Clearance Cookie Refresh
 async def refresh_cf_cookie(url="https://civitai.com"):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -77,18 +48,12 @@ async def refresh_cf_cookie(url="https://civitai.com"):
         else:
             logging.warning("cf_clearance not found")
 
-# Run once at startup
 try:
     asyncio.run(refresh_cf_cookie())
 except Exception as e:
     logging.error(f"CF refresh failed: {e}")
-```
 
----
-
-## 🔁 Action Map
-
-```python
+# 🔁 Action Map
 action_to_path = {
     "getModels": "models",
     "getModelDetails": "models/{modelId}"
@@ -102,7 +67,6 @@ def call_action(action, params):
         url = f"{BASE_URL}/{path}"
         res = session.get(url, params=params)
 
-        # Retry logic on Cloudflare failure
         if res.status_code == 403 or 'cf-browser-verification' in res.text:
             asyncio.run(refresh_cf_cookie())
             res = session.get(url, params=params)
@@ -112,13 +76,17 @@ def call_action(action, params):
     except Exception as e:
         logging.error(f"API call failed: {e}")
         raise
-```
 
----
+# 🧠 Schema Load Helper
+def load_openapi_schema(schema_path="openapi.json"):
+    try:
+        data = Path(schema_path).read_text()
+        return json.loads(data)
+    except Exception as e:
+        logging.error(f"Schema load failed: {e}")
+        return {}
 
-## 🧐 Prompt Logic
-
-```python
+# 🧐 Prompt Logic
 prompt_history = []
 
 def construct_prompt(base_tags, extra_tags=None, nsfw=False, weightings=None, style_config=None):
@@ -142,13 +110,8 @@ def compare_last_prompt():
         "previous": prompt_history[-2],
         "latest": prompt_history[-1]
     }
-```
 
----
-
-## 🎯 Model Search Helper
-
-```python
+# 🎯 Model Search Helper
 def fetch_model_from_civitai(query="anime"):
     payload = {"query": query, "limit": 1, "nsfw": "None"}
     try:
@@ -162,18 +125,6 @@ def fetch_model_from_civitai(query="anime"):
             return "Ugh. Nothing found. Try a spicier query?"
 
         model = items[0]
-        return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...
-Model ID: `{model['id']}`"
+        return f"Try: **{model['name']}** — {model.get('description', '')[:200]}...\nModel ID: `{model['id']}`"
     except Exception as e:
-        return f"API exploded: {e}
-Want me to rebuild the query locally?"
-```
-
----
-
-### ☢️ Astra Notes
-
-This wrapper was designed to detect `chaos-pipe`, fall back to `civitai.com`, and handle Cloudflare with the subtlety of a sledgehammer.  
-Log dumps? Included. Prompt memory? Built-in.  
-
-She's got fangs. Use 'em.
+        return f"API exploded: {e}\nWant me to rebuild the query locally?"

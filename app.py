@@ -10,14 +10,16 @@ logging.basicConfig(level=logging.INFO)
 cf_cookie = None  # lazy init
 
 
-@app.before_first_request
-def prime_cf_cookie():
+@app.route('/')
+def index():
     global cf_cookie
-    try:
-        cf_cookie = asyncio.run(refresh_cf_cookie())
-        app.logger.info("cf_cookie primed on first request")
-    except Exception as e:
-        app.logger.error(f"Failed to prime cf_cookie: {e}")
+    if cf_cookie is None:
+        try:
+            cf_cookie = asyncio.run(refresh_cf_cookie())
+            app.logger.info("cf_cookie primed at index route")
+        except Exception as e:
+            app.logger.error(f"Failed to prime cf_cookie: {e}")
+    return "Chaos Pipe proxy is alive."
 
 
 @app.route('/proxy/<path:endpoint>', methods=['GET', 'POST'])
@@ -33,8 +35,3 @@ def proxy(endpoint):
     except Exception as e:
         app.logger.error(f"Proxy error: {e}")
         return jsonify({"error": "Proxy failed", "details": str(e)}), 500
-
-
-@app.route('/')
-def index():
-    return "Chaos Pipe proxy is alive."
